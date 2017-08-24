@@ -1,10 +1,10 @@
-FROM        debian
+FROM        debian:wheezy
 MAINTAINER  Love Nyberg "love.nyberg@lovemusic.se"
 
 # Update the package repository
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \ 
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y wget curl locales
+	DEBIAN_FRONTEND=noninteractive apt-get install -y wget curl locales vim
 
 # Configure timezone and locale
 RUN echo "Europe/Stockholm" > /etc/timezone && \
@@ -16,17 +16,21 @@ RUN export LANGUAGE=en_US.UTF-8 && \
 	DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales
 
 # Added dotdeb to apt
-RUN echo "deb http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list.d/dotdeb.org.list && \
-	echo "deb-src http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list.d/dotdeb.org.list && \
-	wget -O- http://www.dotdeb.org/dotdeb.gpg | apt-key add -
+#RUN echo "deb http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list.d/dotdeb.org.list && \
+#	echo "deb-src http://packages.dotdeb.org squeeze all" >> /etc/apt/sources.list.d/dotdeb.org.list && \
+#	wget -O- http://www.dotdeb.org/dotdeb.gpg | apt-key add -
+
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ wheezy-pgdg main" >> /etc/apt/sources.list.d/postgresql.org.list && \
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+
 
 # Install PHP 5.5
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y php5-cli php5 php5-mcrypt php5-curl php5-pgsql postgresql-contrib phppgadmin
- 
-# Let's set the default timezone in both cli and apache configs
-RUN sed -i 's/\;date\.timezone\ \=/date\.timezone\ \=\ Europe\/Stockholm/g' /etc/php5/cli/php.ini && \
-	sed -i 's/\;date\.timezone\ \=/date\.timezone\ \=\ Europe\/Stockholm/g' /etc/php5/apache2/php.ini
+	DEBIAN_FRONTEND=noninteractive apt-get install -y php5-cli php5 php5-mcrypt php5-curl php5-pgsql postgresql-9.5
+
+RUN curl -L  -o phppgadmin.tar.gz https://github.com/phppgadmin/phppgadmin/tarball/master
+RUN mkdir /usr/share/phppgadmin
+RUN tar -C /usr/share/phppgadmin --strip-components 1 -zxvf phppgadmin.tar.gz
 
 # Setup Composer
 RUN curl -sS https://getcomposer.org/installer | php && \
@@ -42,7 +46,7 @@ RUN a2enmod rewrite
 # Fix phppgadmin
 ADD ./phppgadmin.conf /etc/apache2/conf.d/phppgadmin
 ADD ./config.inc.php /usr/share/phppgadmin/conf/config.inc.php
-RUN sed -i 's/variables_order = "GPCS"/variables_order = "EGPCS"/g' /etc/php5/apache2/php.ini 
+RUN sed -i 's/variables_order = "GPCS"/variables_order = "EGPCS"/g' /etc/php5/apache2/php.ini
 
 # Set Apache environment variables (can be changed on docker run with -e)
 ENV APACHE_RUN_USER www-data
